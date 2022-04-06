@@ -1,6 +1,6 @@
 import falcon
 
-from .resources import EvalResource
+from .resources import About, EvalResource
 
 
 class SnekAPI(falcon.API):
@@ -8,6 +8,8 @@ class SnekAPI(falcon.API):
     The main entry point to the snekbox JSON API.
 
     Routes:
+    - /
+        Snekbox Metadata
 
     - /eval
         Evaluation of Python code
@@ -23,4 +25,5 @@ class SnekAPI(falcon.API):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.add_route("/", About())
         self.add_route("/eval", EvalResource())
