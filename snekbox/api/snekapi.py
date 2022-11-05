@@ -2,7 +2,7 @@ import falcon
 
 from snekbox.nsjail import NsJail
 
-from .resources import EvalResource
+from .resources import EvalResource, PackageListResource, SinglePackageResource
 
 
 class SnekAPI(falcon.App):
@@ -29,3 +29,6 @@ class SnekAPI(falcon.App):
 
         nsjail = NsJail(*args, **kwargs)
         self.add_route("/eval", EvalResource(nsjail))
+
+        self.add_route("/packages", PackageListResource())
+        self.add_route("/packages/{name}", SinglePackageResource(nsjail))
