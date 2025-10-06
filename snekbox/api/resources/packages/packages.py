@@ -31,7 +31,9 @@ class PackageListResource:
         command = f"{sys.executable} -m pip list --format=json --user"
         env = os.environ.copy()
         env["PYTHONUSERBASE"] = USERBASE
-        result = subprocess.run(command.split(), text=True, capture_output=True, env=env)
+        result = subprocess.run(
+            command.split(), text=True, capture_output=True, env=env, check=False
+        )
         print(result.stdout)
         print(result.stderr)
         if result.returncode != 0:
@@ -44,6 +46,12 @@ class PackageListResource:
     POST_REQ_SCHEMA = {
         "type": "object",
         "properties": {
+            "python_versions": {
+                "type": "array",
+                "items": {
+                    "type": "string",
+                },
+            },
             "packages": {
                 "type": "array",
                 "items": {
@@ -65,19 +73,32 @@ class PackageListResource:
         """Install the provided packages to snekbox."""
         packages = shlex.join(req.media["packages"])
         logger.debug(f"Installing packages: {packages}")
-        cmd = f"PYTHONUSERBASE={USERBASE} {sys.executable} -m pip install "
+        python_paths = (
+            f"/snekbin/python/{version}/bin/python"
+            for version in req.media.get("python_versions", [])
+        )
+        cmds = f"PYTHONUSERBASE={USERBASE} {python_paths} -m pip install "
+        args: list[str] = []
         if req.media.get("upgrade"):
-            cmd += "-upgrade "
+            args.append("-upgrade")
         if req.media.get("force_reinstall"):
-            cmd += "--force-reinstall "
+            args.append("--force-reinstall")
 
-        # todo: switch to subprocess and collect the stdout
-        code = os.system(cmd + packages)
+        results: list[subprocess.CompletedProcess[str]] = []
+        for cmd in cmds:
+            results.append(
+                subprocess.run(
+                    cmd + packages + " " + " ".join(args),
+                    shell=True,
+                    text=True,
+                    capture_output=True,
+                )
+            )
 
-        if code == 0:
+        if all(result.returncode == 0 for result in results):
             resp.status = falcon.HTTP_204
         else:
-            resp.status = falcon.status.HTTP_500
+            resp.status = falcon.HTTP_500
 
 
 GET_INFO_CODE = """
